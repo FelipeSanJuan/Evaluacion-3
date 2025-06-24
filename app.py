@@ -55,9 +55,14 @@ if archivo and tipo != "Seleccionar...":
     # Convertir a Excel
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Normalizado")
-        writer.save()
-    st.download_button("📥 Descargar como Excel", data=buffer.getvalue(), file_name="datos_normalizados.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        df.to_excel(writer, index=False, sheet_name="Normalizado")  # 🔥 writer.save() eliminado
+
+    st.download_button(
+        "📥 Descargar como Excel",
+        data=buffer.getvalue(),
+        file_name="datos_normalizados.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 elif tipo != "Seleccionar...":
     st.warning("⚠️ Debes subir un archivo .txt para continuar.")
