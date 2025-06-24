@@ -27,7 +27,11 @@ tipo = st.selectbox("¿Qué tipo de datos quieres normalizar?", [
 
 # ----------- PROCESAMIENTO -----------
 if archivo and tipo != "Seleccionar...":
-    contenido = archivo.read().decode("utf-8")  # Leer el archivo como texto
+    contenido_binario = archivo.read()
+    try:
+        contenido = contenido_binario.decode("utf-8")
+    except UnicodeDecodeError:
+        contenido = contenido_binario.decode("latin1")
 
     # Normalizar según tipo
     if tipo == "Ciudades":
