@@ -1,28 +1,89 @@
+import streamlit as st
 import pandas as pd
-import unicodedata
-import re
+from io import BytesIO
+from normalizadores import norm_ciudades, norm_fechas, norm_lugares
 
-# Esta función limpia y normaliza una línea de texto (ciudad)
-def limpiar_texto(texto):
-    texto = texto.upper()  # Convertir a mayúsculas
-    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')  # Eliminar tildes y eñes
-    texto = re.sub(r"[^\w\s]", "", texto)  # Eliminar caracteres especiales como puntos y comas
-    texto = texto.strip()  # Quitar espacios al inicio y final
-    return texto
+# ----------- CONFIGURACIÓN DE LA APP -----------
+st.set_page_config(page_title="Normalizador de Datos", layout="centered")
+st.title("🧹 Normalizador de Datos")
+st.markdown("""
+Esta aplicación te permite normalizar tres tipos de datos:
+- **Ciudades**
+- **Fechas de nacimiento**
+- **Lugares con direcciones**
 
-# Función principal que toma el contenido del archivo y devuelve un DataFrame normalizado
-def normalizar_ciudades(contenido_txt):
-    lineas = contenido_txt.strip().split("\n")  # Separar el texto en líneas
-    ciudades = []
-    for linea in lineas:
-        partes = linea.strip().split(".", 1)
-        if len(partes) == 2:
-            ciudad = limpiar_texto(partes[1])
-            ciudades.append(ciudad)
+Sube tu archivo `.txt` o `.xlsx` (solo para fechas), selecciona el tipo de datos y descarga los resultados normalizados.
+""")
 
-    # Crear DataFrame, eliminar duplicados y asignar ID
-    df = pd.DataFrame(ciudades, columns=["CIUDAD"])
-    df = df.drop_duplicates().reset_index(drop=True)
-    df["ID"] = df.index + 1
-    df = df[["ID", "CIUDAD"]]  # Ordenar columnas
-    return df
+# ----------- SUBIDA DE ARCHIVO -----------
+archivo = st.file_uploader(
+    "📂 Sube tu archivo (.txt o .xlsx)",
+    type=["txt", "xlsx"]
+)
+
+tipo = st.selectbox(
+    "¿Qué tipo de datos quieres normalizar?",
+    [
+        "Seleccionar...",
+        "Ciudades",
+        "Fechas de nacimiento",
+        "Lugares con direcciones"
+    ]
+)
+
+# ----------- PROCESAMIENTO -----------
+if archivo and tipo != "Seleccionar...":
+    df = None
+
+    # Procesar según el tipo de archivo y tipo de datos
+    if tipo == "Fechas de nacimiento" and archivo.name.endswith(".xlsx"):
+        # Lectura directa de Excel
+        df = norm_fechas.normalizar_fechas(archivo_excel=archivo)
+    else:
+        # Leer contenido binario (.txt)
+        contenido_binario = archivo.read()
+        try:
+            contenido = contenido_binario.decode("utf-8")
+        except UnicodeDecodeError:
+            contenido = contenido_binario.decode("latin1")
+
+        if tipo == "Ciudades":
+            df = norm_ciudades.normalizar_ciudades(contenido)
+        elif tipo == "Fechas de nacimiento":
+            df = norm_fechas.normalizar_fechas(contenido_txt=contenido)
+        elif tipo == "Lugares con direcciones":
+            df = norm_lugares.normalizar_lugares(contenido)
+        else:
+            st.error("Tipo de dato no válido")
+            st.stop()
+
+    if df is not None and not df.empty:
+        # Mostrar vista previa
+        st.success(f"✅ Datos normalizados correctamente. Total registros: {len(df)}")
+        st.dataframe(df, use_container_width=True)
+
+        # Convertir a CSV
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "📥 Descargar como CSV",
+            data=csv,
+            file_name="datos_normalizados.csv",
+            mime="text/csv"
+        )
+
+        # Convertir a Excel
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name="Normalizado")
+
+        st.download_button(
+            "📥 Descargar como Excel",
+            data=buffer.getvalue(),
+            file_name="datos_normalizados.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.warning("⚠️ No se encontraron datos para normalizar.")
+
+elif tipo != "Seleccionar...":
+    st.warning("⚠️ Debes subir un archivo para continuar.")
