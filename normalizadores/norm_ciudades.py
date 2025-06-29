@@ -7,6 +7,7 @@ def limpiar_texto(texto):
     texto = texto.upper()  # Convertir a mayúsculas
     texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')  # Eliminar tildes y eñes
     texto = re.sub(r"[^\w\s]", "", texto)  # Eliminar caracteres especiales como puntos y comas
+    texto = re.sub(r"\s+", " ", texto)  # Reemplazar tabs, múltiples espacios por uno solo
     texto = texto.strip()  # Quitar espacios al inicio y final
     return texto
 
@@ -16,9 +17,9 @@ def normalizar_ciudades(contenido_txt):
     ciudades = []
 
     for linea in lineas:
-        if not linea.strip():  # Ignorar líneas vacías aunque tengan espacios o tabs
-            continue
         linea = linea.strip()
+        if not linea:  # Ignorar líneas vacías después de limpiar tabs y espacios
+            continue
 
         # Caso con numeración (ej. "1. Santiago")
         if re.match(r"^\d+\.\s", linea):
@@ -28,7 +29,8 @@ def normalizar_ciudades(contenido_txt):
             # Caso sin numeración
             ciudad = limpiar_texto(linea)
 
-        ciudades.append(ciudad)
+        if ciudad:  # Solo agregar si hay contenido real
+            ciudades.append(ciudad)
 
     # Crear DataFrame, eliminar duplicados y asignar ID
     df = pd.DataFrame(ciudades, columns=["CIUDAD"])
