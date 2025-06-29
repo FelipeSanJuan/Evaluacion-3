@@ -5,16 +5,23 @@ from dateutil import parser
 
 # Intenta convertir una fecha a formato DD-MM-YYYY
 def parse_fecha(fecha_raw):
-    if "a.C" in fecha_raw.lower() or "alrededor" in fecha_raw.lower():
+    if pd.isnull(fecha_raw):
         return None
-    fecha_raw = re.sub(r"[\/\.]", "-", fecha_raw.strip())
+    if isinstance(fecha_raw, datetime):
+        return fecha_raw.strftime("%d-%m-%Y")
+
+    # Ignorar registros sin fecha útil
+    if "a.C" in str(fecha_raw).lower() or "alrededor" in str(fecha_raw).lower():
+        return None
+
+    fecha_raw = re.sub(r"[\\/\\.]", "-", str(fecha_raw).strip())
     try:
         fecha = parser.parse(fecha_raw, dayfirst=True)
         return fecha.strftime("%d-%m-%Y")
     except:
         return None
 
-# Calcula la edad actual a partir de una fecha
+# Calcula edad actual a partir de la fecha
 def calcular_edad(fecha_str):
     try:
         fecha = datetime.strptime(fecha_str, "%d-%m-%Y")
@@ -23,7 +30,7 @@ def calcular_edad(fecha_str):
     except:
         return None
 
-# Verifica si la persona cumple años hoy
+# Devuelve 1 si cumple años hoy, 0 si no
 def es_cumple_hoy(fecha_str):
     try:
         fecha = datetime.strptime(fecha_str, "%d-%m-%Y")
@@ -32,21 +39,58 @@ def es_cumple_hoy(fecha_str):
     except:
         return 0
 
-# Función principal que normaliza fechas de nacimiento
-def normalizar_fechas(contenido_txt):
-    lineas = contenido_txt.strip().split("\n")
+# -------- FUNCIÓN PRINCIPAL --------
+def normalizar_fechas(contenido_txt=None, archivo_excel=None):
     datos = []
-    for linea in lineas:
-        match = re.match(r"\d+\.\s*(.*?)\s*-\s*(.+)", linea.strip())
-        if match:
-            nombre = match.group(1).strip().upper()
-            fecha_raw = match.group(2).strip()
-            fecha = parse_fecha(fecha_raw)
-            if fecha:
-                datos.append((nombre, fecha))
 
+    # CASO TXT
+    if contenido_txt:
+        lineas = contenido_txt.strip().split("\n")
+        for linea in lineas:
+            match = re.match(r"\d+\.\s*(.*?)\s*-\s*(.+)", linea.strip())
+            if match:
+                nombre = match.group(1).strip().upper()
+                fecha_raw = match.group(2).strip()
+                fecha = parse_fecha(fecha_raw)
+                if fecha:
+                    datos.append((nombre, fecha))
+            else:
+                # Si la línea tiene solo el nombre (sin fecha), aún podemos tomarlo
+                nombre = linea.strip().upper()
+                if nombre:
+                    datos.append((nombre, None))
+
+    # CASO EXCEL
+    elif archivo_excel:
+        df_excel = pd.read_excel(archivo_excel)
+        columnas = df_excel.columns.str.upper()
+
+        # Verificar si tiene las columnas esperadas
+        if "NOMBRE" in columnas.tolist() and "FECHA NACIMIENTO" in columnas.tolist():
+            for _, row in df_excel.iterrows():
+                nombre = str(row["Nombre"]).strip().upper()
+                fecha = parse_fecha(row["Fecha Nacimiento"])
+                datos.append((nombre, fecha))
+        else:
+            # Si solo tiene nombres (sin fecha)
+            if "NOMBRE" in columnas.tolist():
+                for nombre in df_excel["Nombre"]:
+                    nombre = str(nombre).strip().upper()
+                    datos.append((nombre, None))
+
+    # Armar DataFrame
     df = pd.DataFrame(datos, columns=["NOMBRE", "FECHA_NACIMIENTO"])
+
+    # Eliminar duplicados por nombre
     df = df.drop_duplicates(subset="NOMBRE", keep="first")
-    df["EDAD"] = df["FECHA_NACIMIENTO"].apply(calcular_edad)
-    df["CUMPLE_HOY"] = df["FECHA_NACIMIENTO"].apply(es_cumple_hoy)
+
+    # Calcular edad y cumpleaños si hay fechas
+    if "FECHA_NACIMIENTO" in df.columns:
+        df["EDAD"] = df["FECHA_NACIMIENTO"].apply(
+            lambda x: calcular_edad(x) if pd.notnull(x) else None
+        )
+        df["CUMPLE_HOY"] = df["FECHA_NACIMIENTO"].apply(
+            lambda x: es_cumple_hoy(x) if pd.notnull(x) else 0
+        )
+
     return df
