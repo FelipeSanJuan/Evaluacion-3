@@ -2,15 +2,15 @@ import pandas as pd
 import unicodedata
 import re
 
-# Función que limpia y normaliza texto
+# Función que limpia texto
 def limpiar_texto(texto):
-    texto = texto.upper()  # O reemplázalo por .lower() si quieres minúsculas
+    texto = texto.upper()
     texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
-    texto = re.sub(r"[^\w\s]", "", texto)  # Quita caracteres especiales
+    texto = re.sub(r"[^\w\s]", "", texto)
     texto = texto.strip()
     return texto
 
-# FUNCION PRINCIPAL CORRECTA
+# FUNCION PRINCIPAL QUE DEBE EXISTIR
 def normalizar_ciudades(contenido_txt):
     lineas = contenido_txt.strip().split("\n")
     ciudades = []
@@ -18,14 +18,13 @@ def normalizar_ciudades(contenido_txt):
     for linea in lineas:
         linea = linea.strip()
         if not linea:
-            continue  # Salta líneas vacías
+            continue
 
-        # Caso con numeración (e.g. "1. Santiago")
+        # Caso con numeración
         if re.match(r"^\d+\.\s", linea):
             partes = linea.split(".", 1)
             ciudad = limpiar_texto(partes[1])
         else:
-            # Caso sin numeración
             ciudad = limpiar_texto(linea)
 
         ciudades.append(ciudad)
