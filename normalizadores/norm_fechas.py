@@ -11,7 +11,8 @@ def parse_fecha(fecha_raw):
         return fecha_raw.strftime("%d-%m-%Y")
 
     # Ignorar registros sin fecha útil
-    if "a.C" in str(fecha_raw).lower() or "alrededor" in str(fecha_raw).lower():
+    fecha_str = str(fecha_raw).lower()
+    if "a.c" in fecha_str or "alrededor" in fecha_str:
         return None
 
     fecha_raw = re.sub(r"[\\/\\.]", "-", str(fecha_raw).strip())
