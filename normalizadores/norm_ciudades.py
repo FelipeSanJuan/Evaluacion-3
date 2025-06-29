@@ -16,9 +16,9 @@ def normalizar_ciudades(contenido_txt):
     ciudades = []
 
     for linea in lineas:
-        linea = linea.strip()
-        if not linea:
+        if not linea.strip():  # Ignorar líneas vacías aunque tengan espacios o tabs
             continue
+        linea = linea.strip()
 
         # Caso con numeración (ej. "1. Santiago")
         if re.match(r"^\d+\.\s", linea):
