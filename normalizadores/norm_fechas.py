@@ -55,7 +55,8 @@ def normalizar_fechas(contenido_txt=None, archivo_excel=None):
                 nombre = match.group(1).strip().upper()
                 fecha_raw = match.group(2).strip()
                 fecha = parse_fecha(fecha_raw)
-                datos.append((nombre, fecha))
+                if fecha:  # Solo agregar si la fecha es válida
+                    datos.append((nombre, fecha))
             else:
                 nombre = linea.strip().upper()
                 if nombre:
@@ -74,7 +75,8 @@ def normalizar_fechas(contenido_txt=None, archivo_excel=None):
             for _, row in df_excel.iterrows():
                 nombre = str(row[nombre_col]).strip().upper()
                 fecha = parse_fecha(row[fecha_col]) if fecha_col else None
-                datos.append((nombre, fecha))
+                if fecha:  # Solo agregar si la fecha es válida
+                    datos.append((nombre, fecha))
 
     # Armar DataFrame
     df = pd.DataFrame(datos, columns=["NOMBRE", "FECHA_NACIMIENTO"])
