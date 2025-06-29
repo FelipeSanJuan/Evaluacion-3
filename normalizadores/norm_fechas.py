@@ -47,15 +47,15 @@ def normalizar_fechas(contenido_txt=None, archivo_excel=None):
     if contenido_txt:
         lineas = contenido_txt.strip().split("\n")
         for linea in lineas:
+            if not linea.strip():
+                continue
             match = re.match(r"\d+\.\s*(.*?)\s*-\s*(.+)", linea.strip())
             if match:
                 nombre = match.group(1).strip().upper()
                 fecha_raw = match.group(2).strip()
                 fecha = parse_fecha(fecha_raw)
-                if fecha:
-                    datos.append((nombre, fecha))
+                datos.append((nombre, fecha))
             else:
-                # Si la línea tiene solo el nombre (sin fecha), aún podemos tomarlo
                 nombre = linea.strip().upper()
                 if nombre:
                     datos.append((nombre, None))
@@ -63,20 +63,17 @@ def normalizar_fechas(contenido_txt=None, archivo_excel=None):
     # CASO EXCEL
     elif archivo_excel:
         df_excel = pd.read_excel(archivo_excel)
-        columnas = df_excel.columns.str.upper()
+        columnas = df_excel.columns
 
-        # Verificar si tiene las columnas esperadas
-        if "NOMBRE" in columnas.tolist() and "FECHA NACIMIENTO" in columnas.tolist():
+        # Buscar columnas similares a "Nombre" y "Fecha Nacimiento"
+        nombre_col = next((col for col in columnas if "NOMBRE" in col.upper()), None)
+        fecha_col = next((col for col in columnas if "FECHA" in col.upper() and "NACIMIENTO" in col.upper()), None)
+
+        if nombre_col:
             for _, row in df_excel.iterrows():
-                nombre = str(row["Nombre"]).strip().upper()
-                fecha = parse_fecha(row["Fecha Nacimiento"])
+                nombre = str(row[nombre_col]).strip().upper()
+                fecha = parse_fecha(row[fecha_col]) if fecha_col else None
                 datos.append((nombre, fecha))
-        else:
-            # Si solo tiene nombres (sin fecha)
-            if "NOMBRE" in columnas.tolist():
-                for nombre in df_excel["Nombre"]:
-                    nombre = str(nombre).strip().upper()
-                    datos.append((nombre, None))
 
     # Armar DataFrame
     df = pd.DataFrame(datos, columns=["NOMBRE", "FECHA_NACIMIENTO"])
@@ -85,12 +82,7 @@ def normalizar_fechas(contenido_txt=None, archivo_excel=None):
     df = df.drop_duplicates(subset="NOMBRE", keep="first")
 
     # Calcular edad y cumpleaños si hay fechas
-    if "FECHA_NACIMIENTO" in df.columns:
-        df["EDAD"] = df["FECHA_NACIMIENTO"].apply(
-            lambda x: calcular_edad(x) if pd.notnull(x) else None
-        )
-        df["CUMPLE_HOY"] = df["FECHA_NACIMIENTO"].apply(
-            lambda x: es_cumple_hoy(x) if pd.notnull(x) else 0
-        )
+    df["EDAD"] = df["FECHA_NACIMIENTO"].apply(lambda x: calcular_edad(x) if pd.notnull(x) else None)
+    df["CUMPLE_HOY"] = df["FECHA_NACIMIENTO"].apply(lambda x: es_cumple_hoy(x) if pd.notnull(x) else 0)
 
     return df
